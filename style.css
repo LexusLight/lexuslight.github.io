@@ -151,14 +151,23 @@ body::after {
   position: relative;
   text-align: center;
   padding: 40px 20px 14px;
-  overflow: hidden;
+  /* no overflow:hidden here anymore — see .brand-bloom below. body already
+     has overflow-x:hidden globally, so there's no risk of a horizontal
+     scrollbar from removing it here. */
 }
 .brand-bloom {
   position: absolute;
   left: 50%;
   top: 10%;
-  width: 480px;
-  height: 260px;
+  /* was a fixed 480x260 — on a narrow phone screen that's wider than the
+     wrap itself, so overflow:hidden on the parent was cutting the glow off
+     with a hard visible edge instead of letting it fade out smoothly (the
+     gradient only reaches full transparency at 70% of the ellipse, so
+     clipping the box before that point clips visible glow, not just empty
+     space). clamp() shrinks it to fit narrower screens so it fades out on
+     its own terms instead of getting cut off. */
+  width: clamp(260px, 65vw, 480px);
+  height: clamp(150px, 38vw, 260px);
   transform: translateX(-50%);
   background: radial-gradient(ellipse at center, color-mix(in srgb, var(--gold) 55%, transparent), transparent 70%);
   filter: blur(30px);
