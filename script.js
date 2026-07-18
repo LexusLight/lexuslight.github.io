@@ -444,11 +444,21 @@ document.addEventListener('DOMContentLoaded', () => {
       );
       ctx.imageSmoothingEnabled = false;
 
+      // phones get a much lighter version of this whole background: weaker
+      // GPUs/CPUs, AND the canvas now covers the full scrollable page
+      // height (not just one viewport, see above) — on a tall mobile page
+      // that alone was enough to hit the old 600-star cap almost
+      // immediately even on a narrow screen, plus the full set of spiral
+      // streams, all drawn every single frame. Matches the 640px breakpoint
+      // already used elsewhere for the stacked mobile layout.
+      const isMobile = window.innerWidth <= 640;
+
       // stars — small twinkling pixels that also drift upward, slowly.
       // capped: on a big/ultrawide monitor this scaled past 2000+ stars,
       // each needing its own sin()/alpha/fillRect call every frame — a real
       // contributor to jank, not just the avatar's SVG filter.
-      const starCount = Math.min(600, Math.floor((canvas.width * canvas.height) / 1800));
+      const starCap = isMobile ? 150 : 600;
+      const starCount = Math.min(starCap, Math.floor((canvas.width * canvas.height) / 1800));
       stars = Array.from({ length: starCount }, () => ({
         x: Math.floor(Math.random() * canvas.width),
         y: Math.floor(Math.random() * canvas.height),
@@ -459,11 +469,12 @@ document.addEventListener('DOMContentLoaded', () => {
       }));
 
       // spiral streams — minecraft-potion-style pixel swirls rising bottom -> top
-      const streamCount = Math.max(3, Math.floor(canvas.width / 380));
+      const streamCount = Math.max(2, Math.floor(canvas.width / (isMobile ? 500 : 380)));
+      const particlesPerStream = isMobile ? 2 : 4;
       spirals = [];
       for (let i = 0; i < streamCount; i++) {
         const baseX = (canvas.width / streamCount) * (i + 0.5) + (Math.random() * 60 - 30);
-        for (let j = 0; j < 4; j++) {
+        for (let j = 0; j < particlesPerStream; j++) {
           spirals.push(makeSpiralParticle(baseX, false));
         }
       }
