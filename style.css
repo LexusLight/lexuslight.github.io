@@ -1,0 +1,843 @@
+/* ==========================================================================
+   LexusLight
+   Structure borrowed from cerf.wtf (dense profile box, labeled widgets).
+   Palette & finish borrowed from fizz-star-lab: layered navy/indigo surfaces,
+   one warm + one cool accent, soft glass cards, no neon text-shadow glow —
+   just a single soft bloom behind the brand title, like a distant nebula.
+   ========================================================================== */
+
+@font-face {
+  font-family: 'Retro Gaming';
+  src: url('RetroGaming.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --bg: #0a0a16;
+  --bg-surface-1: #10132a;
+  --bg-surface-2: #161a38;
+  --bg-surface-3: #1c2148;
+
+  --gold: #ffd700;
+  --violet: #7b68ee;
+  /* was a soft coral-pink — punched up to a real hot pink/magenta */
+  --rose: #ff1f8f;
+
+  --border: rgba(255,255,255,0.09);
+  --border-strong: rgba(255,255,255,0.16);
+
+  --text-primary: #f4f3f8;
+  --text-secondary: #b7b4c6;
+  --text-muted: #827f96;
+  --text-white: #ffffff;
+
+  /* single fixed accent now — no more persona-driven color switching */
+  --accent: var(--rose);
+
+  /* pixel font everywhere now — body copy included, sans-serif kept only
+     as the fallback if the file fails to load */
+  --font: 'Retro Gaming', -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  /* self-hosted pixel font for glowing headings, cerf.wtf-style acid look.
+     monospace stack kept as fallback in case the file fails to load. */
+  --font-heading: 'Retro Gaming', ui-monospace, 'SFMono-Regular', 'Cascadia Mono', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
+
+  --radius: 12px;
+  --content-width: 760px;
+  --shadow-card: 0 6px 20px rgba(0,0,0,0.35);
+  --shadow-card-hover: 0 10px 28px rgba(0,0,0,0.45);
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font);
+  font-size: 13.5px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+a { color: inherit; text-decoration: none; }
+
+h1, h2, h3 { margin: 0; color: var(--text-white); }
+
+img, svg { display: block; max-width: 100%; }
+
+::selection { background: var(--accent); color: #0a0a16; }
+
+/* bright, acid, pixel-ish glow — cerf.wtf-style, used on headings only.
+   Retro Gaming is a single-weight pixel font, so weight stays normal here —
+   fake-bolding it would smear the pixels. */
+.glow-heading {
+  font-family: var(--font-heading);
+  font-weight: normal;
+  color: var(--accent);
+  text-shadow: 0 0 4px currentColor, 0 0 14px currentColor, 0 0 32px currentColor;
+  text-shadow: 0 0 4px currentColor, 0 0 14px currentColor, 0 0 32px color-mix(in srgb, currentColor 65%, transparent);
+}
+
+/* atmosphere layer — the page background was one flat solid color with only
+   stars/spirals drawn on top, which read as flat and depthless rather than
+   like actual open space. This adds a few soft, very low-opacity color
+   glows (nebula-ish, echoing the brand-bloom treatment) plus a gentle
+   vignette that darkens toward the far edges of the viewport, so there's a
+   sense of light falling off into distance instead of uniform black.
+   Sits behind #bg-canvas (same z-index, earlier in DOM = painted first/
+   further back) so the starfield still draws on top of it. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 900px 600px at 50% 5%, color-mix(in srgb, var(--violet) 18%, transparent), transparent 65%),
+    radial-gradient(ellipse 700px 550px at 12% 95%, color-mix(in srgb, var(--rose) 12%, transparent), transparent 70%),
+    radial-gradient(ellipse 700px 550px at 88% 95%, color-mix(in srgb, var(--gold) 10%, transparent), transparent 70%),
+    radial-gradient(ellipse 1500px 1100px at 50% 45%, transparent 35%, rgba(0,0,0,0.5) 100%);
+}
+
+/* cosmic backdrop canvas — soft twinkling dust, not neon */
+#bg-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  opacity: .6;
+}
+
+/* subtle CRT scanlines over the whole page — texture, not color */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 999;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.035) 0px,
+    rgba(255, 255, 255, 0.035) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+/* ---------- BRAND ---------- */
+.brand-wrap {
+  position: relative;
+  text-align: center;
+  padding: 40px 20px 14px;
+  overflow: hidden;
+}
+.brand-bloom {
+  position: absolute;
+  left: 50%;
+  top: 10%;
+  width: 480px;
+  height: 260px;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--gold) 55%, transparent), transparent 70%);
+  filter: blur(30px);
+  pointer-events: none;
+}
+.brand {
+  position: relative;
+  font-family: var(--font-heading);
+  font-size: clamp(32px, 8vw, 58px);
+  font-weight: normal;
+  letter-spacing: .02em;
+  /* brand name stays gold always — a fixed logo color, independent of the
+     active persona accent (fizz-star-lab-style gold presence) */
+  color: var(--gold);
+  text-shadow: 0 0 5px currentColor, 0 0 18px currentColor, 0 0 40px currentColor;
+  text-shadow: 0 0 5px currentColor, 0 0 18px currentColor, 0 0 40px color-mix(in srgb, currentColor 65%, transparent);
+  margin: 0;
+}
+.brand-tagline {
+  position: relative;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--text-white);
+  margin: 8px 0 0;
+}
+
+.glitch { display: inline-block; position: relative; }
+.glitch::before,
+.glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  color: var(--gold);
+  opacity: .5;
+}
+.glitch::before { transform: translate(2px,0); clip-path: inset(0 0 55% 0); animation: glitchTop 3.2s infinite linear; }
+.glitch::after  { transform: translate(-2px,0); clip-path: inset(55% 0 0 0); animation: glitchBottom 3.6s infinite linear; }
+@keyframes glitchTop {
+  0%, 92%, 100% { transform: translate(0,0); opacity: 0; }
+  93% { transform: translate(-3px,-1px); opacity: .7; }
+  95% { transform: translate(3px,1px); opacity: .5; }
+  97% { transform: translate(-2px,0); opacity: 0; }
+}
+@keyframes glitchBottom {
+  0%, 90%, 100% { transform: translate(0,0); opacity: 0; }
+  91% { transform: translate(3px,1px); opacity: .7; }
+  94% { transform: translate(-3px,-1px); opacity: .4; }
+  96% { transform: translate(2px,0); opacity: 0; }
+}
+
+/* ---------- PROFILE BOX (glass card) ---------- */
+.profile { padding: 0 16px 30px; }
+
+.profile-box {
+  position: relative;
+  max-width: var(--content-width);
+  margin: 0 auto;
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  padding: 24px 22px 22px;
+}
+
+.box-tab {
+  position: absolute;
+  top: -11px;
+  left: 18px;
+  background: var(--bg-surface-1);
+  padding: 0 8px;
+  border-radius: 6px;
+  font-family: var(--font-heading);
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: .03em;
+}
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 28px;
+}
+
+.col-left, .col-right { display: flex; flex-direction: column; }
+
+/* ---------- IDENTITY ---------- */
+.who-name {
+  font-family: var(--font-heading);
+  font-size: 21px;
+  font-weight: normal;
+  margin: 0 0 8px;
+  /* the "second Lexuslight" — locked gold like the brand h1 */
+  color: var(--gold);
+  text-shadow: 0 0 3px currentColor, 0 0 10px currentColor;
+  text-shadow: 0 0 3px currentColor, 0 0 10px color-mix(in srgb, currentColor 55%, transparent);
+}
+.who-roles {
+  margin: 0 0 14px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* ---------- ART BOX (square glass card) ---------- */
+.art-box {
+  position: relative;
+  border: 1px solid var(--gold);
+  border-radius: var(--radius);
+  background: var(--bg-surface-2);
+  aspect-ratio: 2 / 3;
+  width: 100%;
+  margin: 0 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  /* portrait-frame look: thin dark gap + gold outer ring, like a game UI
+     character-card frame rather than a plain content box. */
+  box-shadow: 0 0 0 3px var(--bg), 0 0 0 4px var(--gold);
+}
+/* decorative overlay: 4 gold corner brackets (all corners now, not just a
+   diagonal pair) + an inset "matting" line + faint tick marks along the top
+   and bottom, like a scanner/character-card HUD frame. Pure decoration —
+   pointer-events:none throughout so it never interferes with the parallax. */
+.art-frame {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+/* inset mat border — a thin second frame line a few px in from the edge,
+   giving the card a "passe-partout" picture-frame depth instead of one flat
+   border. */
+.art-frame::before {
+  content: '';
+  position: absolute;
+  inset: 7px;
+  border: 1px solid color-mix(in srgb, var(--gold) 30%, transparent);
+}
+/* faint gold tick marks just inside the mat line, top and bottom — a small
+   ruler/HUD detail so the frame doesn't read as one plain rectangle. */
+.art-frame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    repeating-linear-gradient(to right, var(--gold) 0 2px, transparent 2px 12px),
+    repeating-linear-gradient(to right, var(--gold) 0 2px, transparent 2px 12px);
+  background-size: 100% 2px, 100% 2px;
+  background-position: top 11px left 4px, bottom 11px left 4px;
+  background-repeat: repeat-x, repeat-x;
+  opacity: 0.35;
+}
+.art-corner {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+}
+.art-corner--tl { top: -5px; left: -5px; border-top: 2px solid var(--gold); border-left: 2px solid var(--gold); }
+.art-corner--tr { top: -5px; right: -5px; border-top: 2px solid var(--gold); border-right: 2px solid var(--gold); }
+.art-corner--bl { bottom: -5px; left: -5px; border-bottom: 2px solid var(--gold); border-left: 2px solid var(--gold); }
+.art-corner--br { bottom: -5px; right: -5px; border-bottom: 2px solid var(--gold); border-right: 2px solid var(--gold); }
+.avatar-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* ---------- parallax SVG avatar (serval) ----------
+   layered vector art: jacket / collar+pendant / ears+face / hair / glasses /
+   pupils / particles, each its own <g class="depth" data-depth="...">. The
+   depth value controls how far that layer drifts under cursor parallax
+   (wired up in script.js) — bigger depth = moves more. .art-box is now the
+   art's own 2:3 ratio, so the whole figure shows uncropped (preserveAspectRatio
+   "meet" in the markup, no more "slice" cover-cropping).
+
+   Outline technique: a plain drop-shadow filter traces EVERY alpha edge in the
+   final raster, including the internal seams that appear between layers once
+   parallax nudges them apart — so it bled white lines inside the character,
+   not just around it. Fixed with three stacked copies instead (bottom to top):
+     1. #avatar-art (real, colored, parallax-animated) — defined once in the
+        markup, referenced (not duplicated) by the two <use> below.
+     2. .avatar-outline--white: a <use> copy of the same art, run through an
+        SVG feMorphology "dilate" filter (fattens the silhouette a few px),
+        recolored solid white — this is the outline ring.
+     3. .avatar-outline--backing: a normal-size <use> copy recolored to match
+        the box background, sitting on top of the white dilation and under the
+        real art — it masks the dilated white everywhere except the true
+        outer edge, and also plugs any internal gaps from parallax drift so
+        they show backing color instead of white.
+   Paint order in the SVG markup is white (bottom) -> backing (middle) -> real
+   art (top), which is what makes this work — SVG paints in document order. */
+.avatar-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  animation: avatarFloat 3.2s ease-in-out infinite alternate;
+  transform-origin: 50% 100%;
+  overflow: visible;
+}
+/* the outline/backing colors come from the single combined SVG filter
+   (#avatar-outline-combined in index.html), not CSS — feFlood needs an
+   actual color, and the backing one reads a CSS custom property (safer as a
+   real CSS property on the element than baked into the attribute string). */
+/* tried boosting the ring's visible thickness with a free CSS transform:
+   scale() here instead of raising the filter radius (to dodge the per-frame
+   FPS cost) — but scaling the already-rasterized dilate output just
+   upscaled its blocky edges, making the ring look jagged/scribbly rather
+   than clean. Reverted: the outline's thickness now comes only from the
+   feMorphology radius in the SVG filter (index.html), tuned to a moderate
+   9/3 that's visibly thicker than the original 6/2 without either problem. */
+.avatar-backing-flood { flood-color: var(--bg-surface-2); }
+@keyframes avatarFloat {
+  from { transform: translateY(0) rotate(0deg); }
+  to   { transform: translateY(-10px) rotate(-0.4deg); }
+}
+
+/* ---------- AVATAR BUBBLE (advice / horoscope output) ---------- */
+.avatar-bubble {
+  position: relative;
+  display: none;
+  /* classic comic-bubble treatment: white inside, dark contrasty text */
+  background: var(--text-white);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  padding: 12px 26px 12px 14px;
+  margin: 0 0 14px;
+}
+.avatar-bubble.is-open { display: block; }
+.avatar-bubble::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 26px;
+  width: 14px;
+  height: 14px;
+  background: var(--text-white);
+  border-left: 1px solid var(--accent);
+  border-top: 1px solid var(--accent);
+  transform: rotate(45deg);
+}
+.avatar-bubble-kicker {
+  margin: 0 0 4px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--accent);
+}
+.avatar-bubble-text {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--bg);
+}
+.avatar-bubble-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  background: none;
+  border: none;
+  color: rgba(10, 10, 22, 0.5);
+  font-size: 11px;
+  cursor: pointer;
+}
+.avatar-bubble-close:hover { color: var(--accent); }
+
+/* ---------- BATTLE MENU (attack / spell / talk — icon buttons, dice roll on press) ---------- */
+.battle-menu {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.battle-btn-wrap { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.battle-btn {
+  width: 100%;
+  font-family: inherit;
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color .2s, transform .2s, box-shadow .2s;
+}
+.battle-btn:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: var(--shadow-card); }
+/* talk/act get a permanent lit-up look instead of only reacting on hover —
+   a tinted border + a soft icon glow (same text-shadow trick as the
+   headings, just toned down) so they read as the primary actions, with
+   flirt left as the plainer, quieter third option. */
+.battle-btn--highlight {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg-surface-2));
+}
+.battle-btn--highlight:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-card), 0 0 16px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.battle-label {
+  font-size: 13px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--text-white);
+}
+.widget-spinner { font-size: 20px; color: var(--accent); display: inline-block; }
+.widget-spinner svg { width: 20px; height: 20px; display: block; }
+.widget-spinner--big { font-size: 26px; text-shadow: 0 0 8px color-mix(in srgb, var(--accent) 70%, transparent); }
+.widget-spinner--big svg { width: 26px; height: 26px; filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent) 70%, transparent)); }
+.widget-spinner.is-spinning { animation: spin .8s ease-out; }
+@keyframes spin { to { transform: rotate(720deg); } }
+
+.counter-label {
+  font-size: 10px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--text-white);
+  margin: 0 0 2px;
+}
+.counter-value {
+  font-family: var(--font-heading);
+  font-size: 30px;
+  font-weight: normal;
+  margin: 0;
+  line-height: 1;
+  color: var(--accent);
+  text-shadow: 0 0 4px currentColor, 0 0 14px currentColor;
+  text-shadow: 0 0 4px currentColor, 0 0 14px color-mix(in srgb, currentColor 55%, transparent);
+}
+.meta-stats { display: flex; gap: 24px; }
+.meta-stats--right { margin-top: auto; justify-content: flex-end; }
+.meta-stat { display: flex; flex-direction: column; }
+
+/* a little "inspected & approved" rubber stamp for the empty space under
+   Stats — two slightly-offset rings (a real stamp never lands perfectly
+   twice) at a jaunty angle, like it was pressed on by hand.
+   .stamp-slot claims all the leftover vertical space between the stats
+   sheet and the page-views counter and centers the stamp inside it on both
+   axes — that's what gives it even margins on all four sides, rather than
+   relying on separate top/bottom vs left/right centering tricks. */
+.stamp-slot {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 90px;
+}
+.stamp {
+  position: relative;
+  width: 175px;
+  height: 175px;
+  transform: rotate(-22deg);
+  opacity: 0.6;
+  pointer-events: none;
+}
+.stamp::before,
+.stamp::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 4px solid var(--accent);
+  border-radius: 50%;
+}
+.stamp::after {
+  inset: 10px;
+  transform: rotate(4deg);
+  border-width: 3px;
+}
+.stamp-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-heading);
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 19px;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.links-heading {
+  font-family: var(--font-heading);
+  font-size: clamp(28px, 5vw, 36px);
+  font-weight: normal;
+  margin: 0 0 12px;
+  line-height: 1.05;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--gold);
+  text-shadow: 0 0 3px currentColor, 0 0 10px currentColor;
+  text-shadow: 0 0 3px currentColor, 0 0 10px color-mix(in srgb, currentColor 55%, transparent);
+}
+.link-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.link-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  color: var(--text-white);
+  transition: border-color .2s, transform .2s;
+}
+.link-box:hover { border-color: var(--accent); color: var(--text-primary); transform: translateY(-2px); }
+/* LinkedIn: kept in the list but not an active link (div, not <a>, in the
+   markup) — muted + no hover lift/glow, so it visually reads as inert
+   instead of looking like a broken/dead button. */
+.link-box--disabled { opacity: .45; cursor: default; }
+.link-box--disabled:hover { border-color: var(--border); color: var(--text-white); transform: none; }
+.link-box--disabled:hover .link-icon { color: var(--text-white); }
+.link-icon {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-surface-3);
+  border-radius: 5px;
+  color: var(--text-white);
+}
+.link-icon svg { width: 13px; height: 13px; }
+.link-box:hover .link-icon { color: var(--accent); }
+.link-tag {
+  margin-left: auto;
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-muted);
+}
+
+/* ---------- DIVIDER ---------- */
+.divider {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  margin: 6px 0 30px;
+  letter-spacing: .04em;
+}
+
+/* ---------- SECTIONS ---------- */
+.section {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 34px 16px;
+}
+.section + .section { position: relative; border-top: 1px solid var(--border); }
+.section + .section::before {
+  content: '★ ◆ ♥ ▰';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--bg);
+  padding: 0 14px;
+  font-size: 11px;
+  letter-spacing: 6px;
+  color: var(--text-muted);
+}
+
+.section-title {
+  font-family: var(--font-heading);
+  font-size: clamp(48px, 8vw, 66px);
+  font-weight: normal;
+  text-transform: capitalize;
+  letter-spacing: .02em;
+  line-height: 1.05;
+  margin: 0 0 20px;
+  color: var(--gold);
+  text-shadow: 0 0 4px currentColor, 0 0 14px currentColor;
+  text-shadow: 0 0 4px currentColor, 0 0 14px color-mix(in srgb, currentColor 55%, transparent);
+}
+
+.section-sub {
+  margin: -6px 0 18px;
+  font-size: 24px;
+  line-height: 1.2;
+  color: var(--text-muted);
+}
+.section-sub a { color: var(--text-secondary); text-decoration: underline; text-underline-offset: 3px; }
+.section-sub a:hover { color: var(--accent); }
+
+/* ---------- ABOUT ---------- */
+/* margin:0 worked fine back when this was a single paragraph — now that the
+   lore text below adds several more, they need real spacing or they'd all
+   run together as one wall of text. */
+.about-text p { font-size: 13.5px; color: var(--text-secondary); margin: 0 0 14px; max-width: 60ch; }
+.about-text p:last-child { margin-bottom: 0; }
+/* pull-quote between the bio and the lore text — bigger, italic, accent
+   color, with a left rule like a proper epigraph, so it reads as a beat
+   change rather than just another paragraph. */
+.about-text p.about-quote {
+  font-family: var(--font-heading);
+  font-style: italic;
+  font-size: 17px;
+  color: var(--accent);
+  border-left: 2px solid var(--accent);
+  padding-left: 14px;
+  margin: 22px 0;
+}
+
+/* ---------- CHARACTERS (grid, big picture) ---------- */
+.char-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 18px;
+}
+.char-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: border-color .2s, transform .2s, box-shadow .2s;
+}
+.char-card:hover { border-color: var(--border-strong); transform: translateY(-3px); box-shadow: var(--shadow-card-hover); }
+.char-picture {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-heading);
+  font-size: 42px;
+  font-weight: normal;
+  color: rgba(10, 10, 22, 0.55);
+}
+.char-game-tag {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-family: var(--font);
+  font-size: 8px;
+  font-weight: normal;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  color: var(--text-white);
+  background: rgba(10, 10, 22, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+  padding: 3px 6px;
+}
+.char-picture--purple  { background: linear-gradient(150deg, var(--violet), var(--bg-surface-3)); }
+.char-picture--magenta { background: linear-gradient(150deg, var(--rose), var(--bg-surface-3)); }
+.char-picture--yellow  { background: linear-gradient(150deg, var(--gold) 15%, var(--bg-surface-3) 85%); }
+.char-picture--photo   { background: var(--bg-surface-3); overflow: hidden; }
+.char-picture--photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.char-picture--green   { background: linear-gradient(150deg, #2fa84f, var(--bg-surface-3)); }
+.char-picture--orange  { background: linear-gradient(150deg, #ff8a3d, var(--bg-surface-3)); }
+.char-picture--teal    { background: linear-gradient(150deg, #2dd4bf, var(--bg-surface-3)); }
+.char-picture--silver  { background: linear-gradient(150deg, #b8bcc4, var(--bg-surface-3)); }
+.char-picture--crimson { background: linear-gradient(150deg, #d1315c, var(--bg-surface-3)); }
+.char-picture--indigo  { background: linear-gradient(150deg, #3b4cca, var(--bg-surface-3)); }
+.char-name { font-size: 16px; font-weight: 700; color: var(--text-white); margin: 14px 16px 0; }
+.char-role { font-size: 11px; color: var(--accent); margin: 4px 16px 0; text-transform: uppercase; letter-spacing: .04em; }
+.char-blurb { font-size: 13px; color: var(--text-secondary); margin: 8px 16px 16px; }
+.char-grid-warning { grid-column: 1 / -1; font-size: 13px; color: var(--text-muted); padding: 20px; text-align: center; }
+
+/* ---------- STATS SHEET ---------- */
+.sheet {
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px 18px;
+}
+.sheet-row {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.sheet-row:last-child { border-bottom: none; }
+.sheet-key { font-size: 12.5px; color: var(--text-white); }
+.sheet-val { font-size: 12.5px; color: var(--text-primary); }
+.symbol-bar { display: grid; grid-template-columns: repeat(10, 1fr); width: 150px; font-size: 14px; }
+.symbol-bar span { min-width: 0; text-align: center; overflow: hidden; }
+.symbol-bar--big span { display: inline-block; transform: scale(1.3); }
+.symbol-fill { color: var(--accent); text-shadow: 0 0 6px currentColor; }
+.symbol-fill--red { color: #ff4d4d; }
+.symbol-fill--pink { color: var(--rose); }
+.symbol-fill--green { color: #2fa84f; }
+.symbol-fill--yellow { color: var(--gold); }
+.symbol-empty { color: var(--bg-surface-3); }
+.spiral-icon {
+  width: 13px;
+  height: 13px;
+  justify-self: center;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+/* ---------- MENTIONS ---------- */
+/* a proper "wall" instead of a loose row of separate pill buttons: one
+   continuous slab of flush tiles. The 1px gap + border-color background
+   underneath doubles as hairline dividers between cells (classic CSS trick
+   for seamless table/wall grids), and the whole thing shares one outer
+   border + radius instead of each badge having its own.
+   flexbox, not CSS grid: with a fixed track count (grid), 19 items don't
+   divide evenly and the last row leaves a blank dead cell hanging off the
+   end — an obvious hole in the "wall". flex-wrap + flex-grow lets the last
+   row's tiles stretch to fill the full width themselves, whatever count
+   ends up in that row, so there's never leftover empty space. */
+.badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.mini-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 100px;
+  /* min-height, not a fixed height: a few of the longer labels (BIGFOOT
+     RESEARCH SOCIETY, BILDERBERG GROUP...) wrap to 2-3 lines at this width,
+     and a fixed height would just let that text spill past the tile. */
+  min-height: 56px;
+  background: var(--bg-surface-1);
+  font-size: 9.5px;
+  line-height: 1.3;
+  letter-spacing: .03em;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 8px 6px;
+  transition: background-color .2s, color .2s;
+}
+.mini-badge:hover { background: var(--bg-surface-2); color: var(--gold); }
+
+/* ---------- FOOTER ---------- */
+.footer {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 22px 16px 36px;
+  color: var(--text-muted);
+  font-size: 11px;
+  border-top: 1px solid var(--border);
+}
+.footer-sub { margin-top: 2px; letter-spacing: .02em; }
+.lang-toggle {
+  margin-top: 10px;
+  font-family: inherit;
+  font-size: 10px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: border-color .2s, color .2s;
+}
+.lang-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ---------- RESPONSIVE ---------- */
+@media (max-width: 640px) {
+  .profile-grid { grid-template-columns: 1fr; gap: 20px; }
+}
+
+/* phones: the desktop numbers above assumed a ~300px+ column sitting next
+   to another column. Once profile-grid stacks to one column (640px, above),
+   col-right becomes full-width but is still just one narrow phone screen —
+   a few pieces were sized for the wider desktop column and need to shrink
+   too, or they'd overflow off the edge of the screen (clipped, since body
+   has overflow-x:hidden to stop the scrollbar, not to make it safe to
+   overflow). Biggest offender: .sheet-row's fixed 160px key column + the
+   fixed 150px .symbol-bar together needed ~320px just for the stats row,
+   more than a lot of phones have to give after the profile box's own
+   padding. */
+@media (max-width: 480px) {
+  .profile { padding: 0 10px 24px; }
+  .profile-box { padding: 18px 14px 16px; }
+
+  .sheet { padding: 4px 12px; }
+  .sheet-row { grid-template-columns: 82px 1fr; gap: 8px; }
+  .symbol-bar { width: 128px; }
+
+  /* same fixed-size-in-a-narrow-column problem as the stats sheet — shrink
+     it enough that its rotated bounding box (a rotated square's footprint
+     is wider than the square itself) still clears the column edges. */
+  .stamp { width: 130px; height: 130px; }
+  .stamp-text { font-size: 15px; }
+
+  /* headings used clamp() with a floor meant for tablet/desktop widths
+     (48px/58px minimums) — fine down to ~480px, but on a small phone that
+     floor stops shrinking and the heading can get tight against the edges
+     or wrap awkwardly. Lower the floor only at this width. */
+  .brand { font-size: clamp(26px, 11vw, 58px); }
+  .section-title { font-size: clamp(34px, 11vw, 66px); }
+}
