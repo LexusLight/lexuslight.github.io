@@ -268,43 +268,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // line pools live in data-flirt.js / data-spell.js / data-talk.js,
   // loaded as globals before this file — one file per action to edit freely.
-  // "encounters" is local per-browser (how many times THIS visitor pressed
-  // talk/act/flirt) — separate from the global counters further down.
-  // localStorage access is wrapped in try/catch: if it throws (private mode,
-  // storage disabled, some file:// setups), the counter just won't persist
-  // across reloads — it must NOT take down the rest of the page's JS with it.
-  const encounterOut = document.getElementById('w-counter-out');
-  let encounterCount = 0;
-  try {
-    encounterCount = Number(localStorage.getItem('ll_click_count') || 0);
-  } catch (err) {
-    console.warn('localStorage unavailable, encounters will not persist', err);
-  }
-  if (encounterOut) encounterOut.textContent = encounterCount;
-
-  function setupBattleButton(btnId, iconId, pool, kickerText) {
-    const btn = document.getElementById(btnId);
-    const icon = document.getElementById(iconId);
-    btn?.addEventListener('click', () => {
-      icon.classList.remove('is-spinning');
-      void icon.offsetWidth; // restart animation — the "dice roll"
-      icon.classList.add('is-spinning');
-
-      showBubble(pool, kickerText);
-
-      encounterCount += 1;
-      if (encounterOut) encounterOut.textContent = encounterCount;
-      try {
-        localStorage.setItem('ll_click_count', encounterCount);
-      } catch (err) {
-        // storage unavailable — the on-screen count above still updates fine
-      }
-    });
-  }
-
-  setupBattleButton('w-talk', 'w-talk-icon', TALK_LINES, 'talk');
-  setupBattleButton('w-act', 'w-act-icon', SPELL_LINES, 'act');
-  setupBattleButton('w-flirt', 'w-flirt-icon', FLIRT_LINES, 'flirt');
 
   // global counters — shared across every visitor, via a free no-auth
   // counting API (countapi.mileshilliard.com). no backend of our own.
@@ -353,6 +316,32 @@ document.addEventListener('DOMContentLoaded', () => {
       counter.render(counter.readCache());
     }
   }
+
+  // incidents: USED TO be a per-browser localStorage tally (every visitor
+  // saw their own count, starting fresh at 0 on any new browser/device —
+  // which is exactly why it looked like it "reset" when switching from a
+  // desktop browser to a phone). Switched to the same shared countapi
+  // counter as flirts/page views below, so it's one real number across
+  // every visitor instead of a separate tally per device.
+  const incidentsCounter = wireGlobalCounter('lexuslight_incidents_v1', 'w-counter-out');
+  fetchCounter(incidentsCounter, 'get');
+
+  function setupBattleButton(btnId, iconId, pool, kickerText) {
+    const btn = document.getElementById(btnId);
+    const icon = document.getElementById(iconId);
+    btn?.addEventListener('click', () => {
+      icon.classList.remove('is-spinning');
+      void icon.offsetWidth; // restart animation — the "dice roll"
+      icon.classList.add('is-spinning');
+
+      showBubble(pool, kickerText);
+      fetchCounter(incidentsCounter, 'hit');
+    });
+  }
+
+  setupBattleButton('w-talk', 'w-talk-icon', TALK_LINES, 'talk');
+  setupBattleButton('w-act', 'w-act-icon', SPELL_LINES, 'act');
+  setupBattleButton('w-flirt', 'w-flirt-icon', FLIRT_LINES, 'flirt');
 
   // flirts: bumped only when the flirt button is pressed
   const flirtCounter = wireGlobalCounter('lexuslight_flirt_clicks_v1', 'w-flirt-count');
