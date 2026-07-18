@@ -55,6 +55,10 @@ html { scroll-behavior: smooth; }
 
 body {
   margin: 0;
+  /* position:relative so the absolutely-positioned full-page layers below
+     (atmosphere gradient, star canvas, scanlines) size themselves against
+     body's actual full content height, not just one viewport's worth. */
+  position: relative;
   background: var(--bg);
   color: var(--text-primary);
   font-family: var(--font);
@@ -90,10 +94,19 @@ img, svg { display: block; max-width: 100%; }
    vignette that darkens toward the far edges of the viewport, so there's a
    sense of light falling off into distance instead of uniform black.
    Sits behind #bg-canvas (same z-index, earlier in DOM = painted first/
-   further back) so the starfield still draws on top of it. */
+   further back) so the starfield still draws on top of it.
+   position:absolute, not fixed: on at least one mobile in-app browser
+   (Telegram's WebView), fixed full-page layers were sizing themselves to
+   the viewport at initial load and not extending to cover the rest of the
+   page as content pushed the document taller — so the footer ended up
+   sitting on plain flat background with no atmosphere/stars behind it.
+   absolute + a position:relative body covers the page's real full height
+   instead, at the cost of this no longer staying visually pinned while you
+   scroll (it now scrolls with the page like a normal background) — a fair
+   trade for not having a broken-looking gap at the bottom on that browser. */
 body::before {
   content: '';
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: -1;
   pointer-events: none;
@@ -104,9 +117,11 @@ body::before {
     radial-gradient(ellipse 1500px 1100px at 50% 45%, transparent 35%, rgba(0,0,0,0.5) 100%);
 }
 
-/* cosmic backdrop canvas — soft twinkling dust, not neon */
+/* cosmic backdrop canvas — soft twinkling dust, not neon.
+   absolute, not fixed — see the body::before comment above; script.js sizes
+   the canvas's actual pixel buffer to the full document height to match. */
 #bg-canvas {
-  position: fixed;
+  position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
@@ -114,10 +129,11 @@ body::before {
   opacity: .6;
 }
 
-/* subtle CRT scanlines over the whole page — texture, not color */
+/* subtle CRT scanlines over the whole page — texture, not color.
+   absolute, not fixed — same reasoning as body::before above. */
 body::after {
   content: '';
-  position: fixed;
+  position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 999;
@@ -822,7 +838,14 @@ body::after {
    padding. */
 @media (max-width: 480px) {
   .profile { padding: 0 10px 24px; }
-  .profile-box { padding: 18px 14px 16px; }
+  /* .box-tab sits at top:-11px, overlapping .profile-box's own top border
+     by design — but that only leaves ~3px of clearance from the tagline
+     above it (.brand-wrap's fixed 14px bottom padding minus that 11px),
+     which read as the tab crowding/overlapping the tagline on a phone
+     screen where everything's already tighter. A bit of top margin here
+     gives it real breathing room instead of shaving pixels off a
+     desktop-tuned fixed offset. */
+  .profile-box { padding: 18px 14px 16px; margin-top: 12px; }
 
   .sheet { padding: 4px 12px; }
   .sheet-row { grid-template-columns: 82px 1fr; gap: 8px; }

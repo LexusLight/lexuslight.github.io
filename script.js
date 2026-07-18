@@ -107,10 +107,26 @@ document.addEventListener('DOMContentLoaded', () => {
     // more often than 60fps during a fast swipe, which was doing a layout
     // read + style write for every single one of those — a big chunk of the
     // jank, especially right after load before anything has settled).
+    // touch devices have no cursor, so mousemove simply never fires there —
+    // the parallax used to just sit dead-center on phones/tablets forever.
+    // lastTouchTime marks any real pointer activity (mouse OR touch); once
+    // it's been idle a bit, tickAvatar below drives the parallax with a
+    // slow autonomous drift instead, so there's always some life to it
+    // regardless of input method.
+    let lastInputTime = 0;
     window.addEventListener('mousemove', (e) => {
       lastMouse.x = e.clientX;
       lastMouse.y = e.clientY;
+      lastInputTime = performance.now();
     });
+    function trackTouch(e) {
+      if (!e.touches || !e.touches.length) return;
+      lastMouse.x = e.touches[0].clientX;
+      lastMouse.y = e.touches[0].clientY;
+      lastInputTime = performance.now();
+    }
+    window.addEventListener('touchstart', trackTouch, { passive: true });
+    window.addEventListener('touchmove', trackTouch, { passive: true });
 
     // skip re-writing style.transform when a layer hasn't meaningfully moved
     // since last frame — once the parallax settles near the target, this
@@ -118,15 +134,25 @@ document.addEventListener('DOMContentLoaded', () => {
     // mirrors this live content, stops forcing the outline filter to
     // re-rasterize) while the cursor sits still.
     const AVATAR_EPSILON = 0.01;
+    const AVATAR_IDLE_MS = 1400; // how long without input before auto-drift kicks in
 
     function tickAvatar() {
-      const rect = avatarSvg.getBoundingClientRect();
-      const cx = rect.left + rect.width / 2;
-      const cy = rect.top + rect.height / 2;
-      const nx = (lastMouse.x - cx) / (window.innerWidth / 2);
-      const ny = (lastMouse.y - cy) / (window.innerHeight / 2);
-      avatarTarget.x = Math.max(-1, Math.min(1, nx));
-      avatarTarget.y = Math.max(-1, Math.min(1, ny));
+      const idleFor = performance.now() - lastInputTime;
+      if (lastInputTime && idleFor < AVATAR_IDLE_MS) {
+        const rect = avatarSvg.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const nx = (lastMouse.x - cx) / (window.innerWidth / 2);
+        const ny = (lastMouse.y - cy) / (window.innerHeight / 2);
+        avatarTarget.x = Math.max(-1, Math.min(1, nx));
+        avatarTarget.y = Math.max(-1, Math.min(1, ny));
+      } else {
+        // idle (or touch never happened at all, e.g. first load on mobile) —
+        // gentle figure-8-ish autonomous sway instead of sitting frozen.
+        const t = performance.now();
+        avatarTarget.x = Math.sin(t * 0.00035) * 0.55;
+        avatarTarget.y = Math.sin(t * 0.0005 + 1.3) * 0.35;
+      }
 
       avatarLayers.forEach(layer => {
         layer.cur.x += (avatarTarget.x - layer.cur.x) * AVATAR_SMOOTH;
@@ -403,12 +429,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function resize() {
-      // the canvas is fixed to the viewport, so size it to the viewport —
-      // not the full scrollable page — otherwise motion gets squashed.
+      // #bg-canvas is position:absolute now (was fixed — see the CSS
+      // comment on body::before for why), covering the page's real full
+      // scrollable height rather than just one viewport, so the pixel
+      // buffer needs to match that full height or the canvas element would
+      // get visibly stretched/blurred past whatever this buffer covers.
       // changing width/height wipes the 2D context state, so smoothing
       // has to be re-disabled every time this runs, not just once at setup.
       canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      canvas.height = Math.max(
+        window.innerHeight,
+        document.documentElement.scrollHeight,
+        document.body.scrollHeight
+      );
       ctx.imageSmoothingEnabled = false;
 
       // stars — small twinkling pixels that also drift upward, slowly.
@@ -562,5 +595,10 @@ document.addEventListener('DOMContentLoaded', () => {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(resize, 200);
     });
+    // the page's real scrollable height can still grow after this script
+    // runs — web fonts swapping in (font-display:swap) can reflow text
+    // taller, images/fonts finishing can shift layout — so re-measure once
+    // everything's actually finished loading, not just at DOMContentLoaded.
+    window.addEventListener('load', resize);
   }
 });
