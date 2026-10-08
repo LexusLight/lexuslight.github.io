@@ -129,6 +129,38 @@ body::before {
   opacity: .6;
 }
 
+/* ---------- monstera leaves along the page edges (monstera.js) ----------
+   absolute + inset:0 against the position:relative body, same as the star
+   canvas, so it covers the full page height (not fixed — see body::before).
+   z-index:-1 and after #bg-canvas in the DOM: above the stars, behind all
+   content. pointer-events:none — monstera.js hit-tests leaves itself on
+   window, so the layer never steals clicks/scrolls from the page. */
+.monstera-layer {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+.monstera-leaf {
+  position: absolute;
+  will-change: transform;
+  overflow: visible;
+}
+body.monstera-hover { cursor: pointer; }
+.monstera-spark {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  margin: -3px 0 0 -3px;
+  box-shadow: 0 0 6px currentColor;
+  animation: monsteraSpark .7s ease-out forwards;
+}
+@keyframes monsteraSpark {
+  0%   { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(.3); opacity: 0; }
+}
+
 /* subtle CRT scanlines over the whole page — texture, not color.
    absolute, not fixed — same reasoning as body::before above. */
 body::after {
@@ -333,48 +365,38 @@ body::after {
 
 /* ---------- parallax SVG avatar (serval) ----------
    layered vector art: jacket / collar+pendant / ears+face / hair / glasses /
-   pupils / particles, each its own <g class="depth" data-depth="...">. The
-   depth value controls how far that layer drifts under cursor parallax
-   (wired up in script.js) — bigger depth = moves more. .art-box is now the
-   art's own 2:3 ratio, so the whole figure shows uncropped (preserveAspectRatio
-   "meet" in the markup, no more "slice" cover-cropping).
+   pupils / particles. Each depth group is its OWN <svg class="avatar-layer
+   depth" data-depth="..."> absolutely positioned over its bounding box inside
+   #avatar-svg (a div with the art's 2:3 ratio, same as .art-box). script.js
+   moves each one with translate() for the cursor parallax — bigger depth =
+   moves more.
 
-   Outline technique: a plain drop-shadow filter traces EVERY alpha edge in the
-   final raster, including the internal seams that appear between layers once
-   parallax nudges them apart — so it bled white lines inside the character,
-   not just around it. Fixed with three stacked copies instead (bottom to top):
-     1. #avatar-art (real, colored, parallax-animated) — defined once in the
-        markup, referenced (not duplicated) by the two <use> below.
-     2. .avatar-outline--white: a <use> copy of the same art, run through an
-        SVG feMorphology "dilate" filter (fattens the silhouette a few px),
-        recolored solid white — this is the outline ring.
-     3. .avatar-outline--backing: a normal-size <use> copy recolored to match
-        the box background, sitting on top of the white dilation and under the
-        real art — it masks the dilated white everywhere except the true
-        outer edge, and also plugs any internal gaps from parallax drift so
-        they show backing color instead of white.
-   Paint order in the SVG markup is white (bottom) -> backing (middle) -> real
-   art (top), which is what makes this work — SVG paints in document order. */
+   Performance (4K freeze fix): this used to be ONE svg whose groups were
+   moved inside it, plus a live SVG feMorphology "dilate" filter for the
+   white sticker outline. Moving anything inside an svg repaints the whole
+   svg, and the filter re-ran every frame (the idle drift + float bob never
+   stop), which on big/high-DPI screens ate the frame budget. Now:
+     - every layer is promoted to its own compositor layer (will-change),
+       so translate() is just a GPU move, no re-raster;
+     - the outline is baked into static paths (see the comment in
+       index.html): white ring layers at the bottom, backing-color layers
+       above them, colored art on top — same paint order as the old filter. */
 .avatar-svg {
+  position: relative;
   display: block;
   width: 100%;
   height: 100%;
   animation: avatarFloat 3.2s ease-in-out infinite alternate;
   transform-origin: 50% 100%;
-  overflow: visible;
+  will-change: transform;
 }
-/* the outline/backing colors come from the single combined SVG filter
-   (#avatar-outline-combined in index.html), not CSS — feFlood needs an
-   actual color, and the backing one reads a CSS custom property (safer as a
-   real CSS property on the element than baked into the attribute string). */
-/* tried boosting the ring's visible thickness with a free CSS transform:
-   scale() here instead of raising the filter radius (to dodge the per-frame
-   FPS cost) — but scaling the already-rasterized dilate output just
-   upscaled its blocky edges, making the ring look jagged/scribbly rather
-   than clean. Reverted: the outline's thickness now comes only from the
-   feMorphology radius in the SVG filter (index.html), tuned to a moderate
-   9/3 that's visibly thicker than the original 6/2 without either problem. */
-.avatar-backing-flood { flood-color: var(--bg-surface-2); }
+.avatar-layer {
+  position: absolute;
+  display: block;
+  overflow: visible;
+  will-change: transform;
+}
+.avatar-backing { fill: var(--bg-surface-2); }
 @keyframes avatarFloat {
   from { transform: translateY(0) rotate(0deg); }
   to   { transform: translateY(-10px) rotate(-0.4deg); }
@@ -650,6 +672,25 @@ body::after {
 }
 .section-sub a { color: var(--text-secondary); text-decoration: underline; text-underline-offset: 3px; }
 .section-sub a:hover { color: var(--accent); }
+
+/* ---------- FANARTS ---------- */
+.fanart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px;
+}
+.fanart-card {
+  display: block;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-surface-2);
+  transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+.fanart-card img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .35s ease; }
+.fanart-card:hover { transform: translateY(-3px); border-color: var(--accent); box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 35%, transparent); }
+.fanart-card:hover img { transform: scale(1.04); }
 
 /* ---------- ABOUT ---------- */
 /* margin:0 worked fine back when this was a single paragraph — now that the

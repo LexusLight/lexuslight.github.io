@@ -134,6 +134,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // mirrors this live content, stops forcing the outline filter to
     // re-rasterize) while the cursor sits still.
     const AVATAR_EPSILON = 0.01;
+    // CSS px per avatar viewBox unit (the art is 1024 units wide)
+    let avatarUnit = (avatarSvg.offsetWidth || 1024) / 1024;
+    window.addEventListener('resize', () => { avatarUnit = (avatarSvg.offsetWidth || 1024) / 1024; });
     const AVATAR_IDLE_MS = 1400; // how long without input before auto-drift kicks in
 
     function tickAvatar() {
@@ -160,7 +163,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const mx = layer.cur.x * AVATAR_MAX_PX * layer.depth;
         const my = layer.cur.y * AVATAR_MAX_PX * layer.depth;
         if (layer.lastX === null || Math.abs(mx - layer.lastX) > AVATAR_EPSILON || Math.abs(my - layer.lastY) > AVATAR_EPSILON) {
-          layer.el.style.transform = `translate(${mx.toFixed(2)}px, ${my.toFixed(2)}px)`;
+          // layers are separate <svg> elements now (see style.css), so the
+          // translate is in CSS px, not svg user units — scale it by the
+          // rendered size so the drift distance matches the old look.
+          layer.el.style.transform = `translate(${(mx * avatarUnit).toFixed(2)}px, ${(my * avatarUnit).toFixed(2)}px)`;
           layer.lastX = mx;
           layer.lastY = my;
         }
